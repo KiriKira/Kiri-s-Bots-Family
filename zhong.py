@@ -2,8 +2,17 @@
 # -*- coding: utf-8 -*-
 
 
-"""
-Simple bot that can repeat something periodically.
+"""Simple Bot to send timed Telegram messages.
+# This program is dedicated to the public domain under the CC0 license.
+This Bot uses the Updater class to handle the bot and the JobQueue to send
+timed messages.
+First, a few handler functions are defined. Then, those functions are passed to
+the Dispatcher and registered at their respective places.
+Then, the bot is started and runs until we press Ctrl-C on the command line.
+Usage:
+Basic Alarm Bot example, sends a message after a set time.
+Press Ctrl-C on the command line or send a signal to the process to stop the
+bot.
 """
 
 import telegram.ext
@@ -48,7 +57,10 @@ def set_timer(bot, update, args, job_queue, chat_data):
         if due < 0:
             update.message.reply_text('时间倒流是只有长者才能办到的事！!')
             return
-
+        elif due <60:
+            update.message.reply_text('不要搞事啦，小心被滥权哦！才{}秒就要敲一次，你想累死钟钟吗？'.format(str(due)))
+            return
+        
         if user in chat_data :
             update.message.reply_text('一人只能用一个钟钟的啦！')
             return
@@ -58,10 +70,9 @@ def set_timer(bot, update, args, job_queue, chat_data):
         job = job_queue.run_repeating(alarm, interval=due, context=[chat_id, chat_num])
         chat_data[user] = job
 
-        update.message.reply_text('成功设置啦！')
-
+        update.message.reply_text('成功设置啦！好孩子会在设错的时候用 /unset 取消的！')
     except (IndexError, ValueError):
-        update.message.reply_text('/set 3600 要像这样用哟！好孩子在发错以后会赶紧用/unset的！')
+        update.message.reply_text('/set 3600 要像这样用哟！')
 
 
 def set_timer_personal(bot, update, args, job_queue, chat_data):
@@ -113,10 +124,10 @@ def welcome(bot,update):
                    '有奇怪的东西进来了',
                    '啊啊啊不能进来啊，这么多一起进来的话。。',
                    '这里是正规群，不女装的请退群',
-                   '这里是正规群，不女装的请让群主女装',
-                   '这里是正规群，请立即关注狗群主女装频道 @sometimesdress']
+                   '这里是正规群，不退群的请女装',
+                   '这里是正规群，不女装的请让群主女装']
 
-    if(update.message.new_chat_member):
+    if(update.message.new_chat_members):
         chat_id = update.message.chat.id
         message_rnd = random.choice(welcome_msg)
         bot.sendMessage(chat_id=chat_id, text=message_rnd)
@@ -126,11 +137,17 @@ def fuq(bot,update):
                    '有奇怪的东西进来了',
                    '啊啊啊不能进来啊，这么多一起进来的话。。',
                    '这里是正规群，不女装的请退群',
-                   '这里是正规群，不女装的请让群主女装',
-                   '这里是正规群，请立即关注狗群主女装频道 @sometimesdress']
+                   '这里是正规群，不退群的请女装',
+                   '这里是正规群，不女装的请让群主女装']
+
+    reply_msg = ['二五崽不要学钟钟说话！',
+                 'Fa♂Q,学钟钟说话是会被续掉的哟',
+                 '你是想跟我一起变成魔法少女吗？',
+                 '好啦好啦小裙子给你，别再学钟钟啦！',
+                 '这么喜欢钟钟的话。。。把你许配给Kiri也不是不可以啦']
     text = update.message.text
     if text in welcome_msg:
-        update.message.reply_text('Fa♂Q,学钟钟说话是会被续掉的哟')
+        update.message.reply_text(random.choice(reply_msg))
 
 def main():
     """Run bot."""
