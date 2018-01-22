@@ -18,6 +18,8 @@ bot.
 import telegram.ext
 import logging
 import random
+import re
+import datetime
 
 # Enable logging
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
@@ -39,7 +41,8 @@ def alarm(bot, job):
     """Send the alarm message."""
     num = job.context[1] % 12 + 1
     job.context[1] += 1
-    bot.send_message(job.context[0], text=num * '铛')
+    text=num * '铛'
+    bot.send_message(job.context[0], text)
 
 
 def alarmp(bot, job):
@@ -54,6 +57,25 @@ def set_timer(bot, update, args, job_queue, chat_data):
     try:
         # args[0] should contain the time for the timer in seconds
         due = int(args[0])
+        date_now = datetime.datetime.now()
+        date_target = date_now
+
+        if len(args) == 2:
+            date_target_str = str(args[1])
+            if re.match(r"\d\d[:：]\d\d[：:]\d\d",date_target_str):
+                hour, minute, second = re.split(r"[:：]",date_target_str)
+                if (0 <= int(hour) <= 23) and  (0 <= int(minute) <= 59) and (0 <= int(second) <=59):
+                    date_target = datetime.datetime(date_now.year,date_now.month,date_now.day,
+                                                    int(hour),int(minute),int(second))
+                    if date_target <= date_now:
+                        date_target = date_target + datetime.timedelta(days=1)
+                else:
+                    update.message.reply_text("乱打时间的人钟钟可不能原谅！")
+                    return
+            else:
+                update.message.reply_text("正确的格式应该是 /set 3600 00:00:00 辣！")
+                return
+
         if due < 0:
             update.message.reply_text('时间倒流是只有长者才能办到的事！!')
             return
@@ -67,7 +89,7 @@ def set_timer(bot, update, args, job_queue, chat_data):
 
         # Add job to queue
         chat_num = 0
-        job = job_queue.run_repeating(alarm, interval=due, context=[chat_id, chat_num])
+        job = job_queue.run_repeating(alarm, interval=due,first=date_target, context=[chat_id, chat_num])
         chat_data[user] = job
 
         update.message.reply_text('成功设置啦！好孩子会在设错的时候用 /unset 取消的！')
@@ -80,7 +102,9 @@ def set_timer_personal(bot, update, args, job_queue, chat_data):
     try:
         # args[0] should contain the time for the timer in seconds
         due = int(args[0])
-        text = str(args[1])
+        text = update.message.text.split(' ',2)[2]
+        if text == '':
+            raise IndexError("list index out of range")
         if due < 0:
             update.message.reply_text('时间倒流是只有长者才能办到的事！!')
             return
@@ -88,10 +112,9 @@ def set_timer_personal(bot, update, args, job_queue, chat_data):
         # Add job to queue
         job = job_queue.run_once(alarmp, due, context=[chat_id, text])
 
-        update.message.reply_text('成功设置啦！')
 
     except (IndexError, ValueError):
-        update.message.reply_text('/setp 5 浪姐女装 要像这样用哟！')
+        update.message.reply_text('/setp 5 浪姐女装 \n要像这样用哟！')
 
 
 def unset(bot, update, chat_data):
