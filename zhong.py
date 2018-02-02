@@ -10,7 +10,7 @@ First, a few handler functions are defined. Then, those functions are passed to
 the Dispatcher and registered at their respective places.
 Then, the bot is started and runs until we press Ctrl-C on the command line.
 Usage:
-Basic Alarm Bot example, sends a message after a set time.
+Simple Alarm Bot example, sends a message after a set time.
 Press Ctrl-C on the command line or send a signal to the process to stop the
 bot.
 """
@@ -82,7 +82,7 @@ def set_timer(bot, update, args, job_queue, chat_data):
         elif due <60:
             update.message.reply_text('不要搞事啦，小心被滥权哦！才{}秒就要敲一次，你想累死钟钟吗？'.format(str(due)))
             return
-        
+
         if user in chat_data :
             update.message.reply_text('一人只能用一个钟钟的啦！')
             return
@@ -102,7 +102,7 @@ def set_timer_personal(bot, update, args, job_queue, chat_data):
     try:
         # args[0] should contain the time for the timer in seconds
         due = int(args[0])
-        text = update.message.text.split(' ',2)[2]
+        text = update.message.text.split(' ', 2)[2]
         if text == '':
             raise IndexError("list index out of range")
         if due < 0:
@@ -135,12 +135,14 @@ def shutup(bot, update, chat_data):
         job = chat_data[key]
         job.schedule_removal()
         del chat_data[key]
-    
+
     update.message.reply_text('钟钟闭嘴就是了嘛，哼')
+
 
 def error(bot, update, error):
     """Log Errors caused by Updates."""
     logger.warning('Update "%s" caused error "%s"', update, error)
+
 
 def welcome(bot,update):
     welcome_msg = ['有新大佬来了',
@@ -154,6 +156,7 @@ def welcome(bot,update):
         chat_id = update.message.chat.id
         message_rnd = random.choice(welcome_msg)
         bot.sendMessage(chat_id=chat_id, text=message_rnd)
+
 
 def fuq(bot,update):
     welcome_msg = ['有新大佬来了',
@@ -171,6 +174,7 @@ def fuq(bot,update):
     text = update.message.text
     if text in welcome_msg:
         update.message.reply_text(random.choice(reply_msg))
+
 
 def main():
     """Run bot."""

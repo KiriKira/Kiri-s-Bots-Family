@@ -43,11 +43,13 @@ def load_json():
     with open("/root/kiray/save.json","r") as f:
         return json.load(f)
 
+
 def save_json(dicty):
     myjsondump = json.dumps(dicty, indent=1)
     with open("/root/kiray/save.json","w") as f:
         f.writelines(myjsondump)
-    
+
+
 def generate_text():
     text = ''
     questions_dict = load_json()
@@ -56,6 +58,7 @@ def generate_text():
         text = text + str(key) + '.'
         text = text + questions_dict[str(key)][0] + '\n'
     return text
+
 
 def start(bot, update):
     update.message.reply_text(
@@ -80,12 +83,13 @@ def questions(bot,update,chat_data):
         if delta < 300:
             remain = 300 -delta
             update.message.reply_text("不要刷屏啦！过{}分{}秒再来！不然小心被滥权哟～".format(int(remain/60),remain%60))
-        else: 
+        else:
             update.message.reply_text(text)
             chat_data[chat_id] = current_time
-        
+
     else:
         update.message.reply_text(text)
+
 
 def question(bot,update,args):
     global questions_dict
@@ -99,6 +103,7 @@ def question(bot,update,args):
     except (IndexError, ValueError):
         update.message.reply_text("不对不对不对，要输入 /answer <No.>(因为你们老看错，所以question就弃用啦)")
 
+
 def answer(bot,update,args):
     global questions_dict
     try:
@@ -109,6 +114,7 @@ def answer(bot,update,args):
             update.message.reply_text("要输入正确的题号哦")
     except (IndexError, ValueError):
         update.message.reply_text("不对不对不对，要输入 /answer <No.>")
+
 
 def edit(bot,update,args):
     global questions_dict
@@ -127,7 +133,7 @@ def edit(bot,update,args):
         elif q_or_a == 1:
             update.message.reply_text("现在开始编辑第{}道题的答案".format(question_num))
             return EDIT_ANSWER
-        else : 
+        else :
             update.message.reply_text("0代表问题，1代表答案！")
             return ConversationHandler.END
     except (KeyError, IndexError, ValueError):
@@ -144,7 +150,8 @@ def edit_question(bot,update):
     update.message.reply_text("好耶！你已修改第{}题的问题为\n{}".format(No, update.message.text))
     text = generate_text()
     return ConversationHandler.END
-    
+
+
 def edit_answer(bot,update):
     global questions_dict
     global No
@@ -154,6 +161,7 @@ def edit_answer(bot,update):
     update.message.reply_text("好耶！你已修改第{}题的答案为\n{}".format(No, update.message.text))
     text = generate_text()
     return ConversationHandler.END
+
 
 def add(bot,update):
     global questions_dict
@@ -168,6 +176,7 @@ def add(bot,update):
         del questions_dict[leng]
     return QUESTION
 
+
 def add_question(bot,update):
     global questions_dict
     update.message.reply_text("好耶。继续输入你想放入的答案，一口气地。 如果你是不小心按到，请输入 /cancel")
@@ -176,6 +185,7 @@ def add_question(bot,update):
     questions_dict[current] = []
     questions_dict[current].append(update.message.text)
     return ANSWER
+
 
 def add_answer(bot,update):
     global questions_dict
@@ -190,7 +200,7 @@ def add_answer(bot,update):
     text = text + questions_dict[str(current)][0] + '\n'
     save_json(questions_dict)
     if username == None :
-        try:    
+        try:
             username = update.message.from_user.first_name + update.message.from_user.last_name
         except(TypeError):
             username = update.message.from_user.first_name
@@ -201,6 +211,7 @@ def add_answer(bot,update):
 
 
     return ConversationHandler.END
+
 
 def search(bot,update,args):
     global questions_dict
@@ -223,6 +234,7 @@ def delete(bot,update):
             text = text + str(key) + '.'
             text = text + questions_dict[str(key)][0] + '\n'
 
+
 def cancel(bot, update):
     global questions_dict
     update.message.reply_text('好啦，那就下次再见咯。',
@@ -237,11 +249,14 @@ def error(bot, update, error):
     """Log Errors caused by Updates."""
     logger.warning('Update "%s" caused error "%s"', update, error)
 
+
 def get_chatid(bot,update):
     update.message.reply_text(update.message.chat_id)
 
-def get_username(bot,update):
-    update.message.reply_text(update.message.from_user.username)
+
+#def get_username(bot,update):
+#    update.message.reply_text(update.message.from_user.username)
+
 
 def main():
     global questions_dict
@@ -259,7 +274,7 @@ def main():
     dp.add_handler(telegram.ext.CommandHandler("help", start))
     dp.add_handler(telegram.ext.CommandHandler("delete", delete))
     dp.add_handler(telegram.ext.CommandHandler("get_chatid", get_chatid))
-    dp.add_handler(telegram.ext.CommandHandler("get_username", get_username))
+#   dp.add_handler(telegram.ext.CommandHandler("get_username", get_username))
     dp.add_handler(telegram.ext.CommandHandler("question", question,
                                                pass_args=True))
     dp.add_handler(telegram.ext.CommandHandler("answer", answer,
@@ -279,7 +294,7 @@ def main():
 
             ANSWER: [MessageHandler(Filters.text, add_answer),
             CommandHandler('cancel', cancel)]
-                    
+
         },
 
         fallbacks=[CommandHandler('cancel', cancel)]
@@ -295,7 +310,7 @@ def main():
 
             EDIT_ANSWER: [MessageHandler(Filters.text, edit_answer),
             CommandHandler('cancel', cancel)]
-                    
+
         },
 
         fallbacks=[CommandHandler('cancel', cancel)]
