@@ -15,9 +15,10 @@ Press Ctrl-C on the command line or send a signal to the process to stop the
 bot.
 """
 
-from telegram import (ReplyKeyboardMarkup, ReplyKeyboardRemove)
+from telegram import (ReplyKeyboardMarkup, ReplyKeyboardRemove, InlineKeyboardButton,
+                      InlineKeyboardMarkup, error)
 from telegram.ext import (Updater, CommandHandler, MessageHandler, Filters, RegexHandler,
-                          ConversationHandler)
+                          ConversationHandler, CallbackQueryHandler)
 import telegram.ext
 
 import logging
@@ -63,32 +64,127 @@ def generate_text():
 def start(bot, update):
     update.message.reply_text(
         '这里是Kiri的V2Ray FAQ bot,用来存档一些常见的问题。你可以：\n '
-        '用 /questions 来获取问题列表\n'
+        '用 /questions 来获取问题列表（翻页模式）\n'
+        '用 /all_questions 来获取全部问题（请在私聊中使用）\n'
         '用 /answer <NO.> 来获得对应答案，其中题号是从 /questions 中得到的\n'
-        '如果你想添加问题和答案的话，请私戳我（ @kiraybot ）并使用 /add 哟')
+        '如果你想添加问题和答案的话，请私戳我（ @kiraybot ）并使用 /add 哟\n')
+
+
+def all_questions(bot,update,chat_data):
+    global text
+    chat_id = update.message.chat_id
+    if chat_id < 0:
+        update.message.reply_text("为了防止刷屏，请在私戳中查看哟")
+    else:
+        update.message.reply_text(text)
 
 
 def questions(bot,update,chat_data):
-    global text
+    global questions_dict
     current_time = time()
     chat_id = update.message.chat_id
+    keyboard = [[InlineKeyboardButton("Next", callback_data='2')],
+               [InlineKeyboardButton(str(i), callback_data=str(i+2)) for i in range(1,6)]]
+
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    reply_text = ''
+    for i in range(1,6):
+        reply_text += "{}.{}\n".format(str(i), questions_dict[str(i)][0])
+
     if chat_id < 0:
         if chat_id in chat_data:
             delta = int(current_time - chat_data[chat_id])
         else:
-            update.message.reply_text(text)
+            update.message.reply_text(reply_text, reply_markup=reply_markup)
             chat_data[chat_id] = current_time
+            chat_data[int(chat_id) + 10086] = 1
             return
 
         if delta < 300:
-            remain = 300 -delta
-            update.message.reply_text("不要刷屏啦！过{}分{}秒再来！不然小心被滥权哟～".format(int(remain/60),remain%60))
+            return
         else:
-            update.message.reply_text(text)
+            update.message.reply_text(reply_text, reply_markup=reply_markup)
             chat_data[chat_id] = current_time
+            chat_data[int(chat_id) + 10086] = 1
 
     else:
-        update.message.reply_text(text)
+        update.message.reply_text(reply_text, reply_markup=reply_markup)
+        chat_data[int(chat_id) + 10086] = 1
+
+
+def button(bot, update, chat_data):
+    """
+
+    :param bot: bot itself
+    :param update: updated message
+    :param chat_data: chat_data[chat_id] is the time of last call of function , while chat_data[chat_id + 10086] is the
+    status of current number of question.
+    :return: None
+    """
+
+    global questions_dict
+    query = update.callback_query
+    choice = query.data
+    chat_id = query.message.chat_id
+    uid = query.from_user.id
+    mid = query.message.message_id
+    current_time = time()
+
+    if chat_id not in chat_data or (chat_id + 10086) not in chat_data:
+        chat_data[chat_id + 10086] = 1
+    qid = int(chat_id) + 10086
+    chat_data[chat_id] = current_time
+
+    if choice == '1' and chat_data[qid] >= 6:
+        chat_data[qid] -= 5
+    elif choice == '2' and chat_data[qid] <= (len(questions_dict) - 5):
+        chat_data[qid] += 5
+    elif choice == '1' or choice == '2':
+        chat_data[qid] = 1
+    else:
+        choice = int(choice) - 2
+        reply_text = "[{}](tg://user?id={})这是你想看哒\n{}.{}\n答:{}".format(
+                query.from_user.first_name,
+                query.from_user.id,
+                choice, questions_dict[str(choice)][0],
+                questions_dict[str(choice)][1])
+
+        if (uid, mid) in chat_data:
+            try:
+                chat_data[(uid, mid)].edit_text(text=reply_text, parse_mode='Markdown')
+            except[error.BadRequest, error.NetworkError]:
+                reply_text = "{}.{}\n答:{}".format(choice, questions_dict[str(choice)][0],
+                                                  questions_dict[str(choice)][1])
+                chat_data[(uid, mid)].edit_text(text=reply_text)
+            query.answer()
+            return
+        archive = bot.send_message(chat_id, text=reply_text, parse_mode='Markdown')
+        chat_data[(uid, mid)] = archive
+
+        query.answer()
+        return
+
+    current = chat_data[qid]
+    edited_text = ''
+    for i in range(current, min(current+5,len(questions_dict)+1)):
+        edited_text += "{}.{}\n".format(i, questions_dict[str(i)][0])
+    questions_keyboard = [[InlineKeyboardButton(str(i), callback_data=str(i + 2))
+                          for i in range(current, min(current+5,len(questions_dict)+1))]]
+
+    if chat_data[qid] <= 5:
+        keyboard = [[InlineKeyboardButton("Next", callback_data='2')]] + questions_keyboard
+    elif chat_data[qid] >= (len(questions_dict) -4):
+        keyboard = [[InlineKeyboardButton("Previous", callback_data='1')]] + questions_keyboard
+    else:
+        keyboard = [[InlineKeyboardButton("Previous", callback_data='1'),
+                     InlineKeyboardButton("Next", callback_data='2')]] + questions_keyboard
+    reply_markup = InlineKeyboardMarkup(keyboard)
+
+    bot.edit_message_text(text=edited_text,
+                          chat_id=query.message.chat_id,
+                          message_id=query.message.message_id,
+                          reply_markup=reply_markup)
+    query.answer()
 
 
 def question(bot,update,args):
@@ -103,17 +199,20 @@ def question(bot,update,args):
     except (IndexError, ValueError):
         update.message.reply_text("不对不对不对，要输入 /answer <No.>(因为你们老看错，所以question就弃用啦)")
 
-
 def answer(bot,update,args):
     global questions_dict
     try:
         choice = str(args[0])
         if choice in questions_dict:
-            update.message.reply_text(questions_dict[choice][1])
+            reply_text = '问：{}\n答：{}'.format(questions_dict[choice][0], questions_dict[choice][1])
+            try:
+                update.message.reply_text(reply_text, parse_mode='Markdown')
+            except[error.BadRequest, error.NetworkError]:
+                update.message.reply_text(reply_text)
         else:
             update.message.reply_text("要输入正确的题号哦")
     except (IndexError, ValueError):
-        update.message.reply_text("不对不对不对，要输入 /answer <No.>")
+        return
 
 
 def edit(bot,update,args):
@@ -133,7 +232,7 @@ def edit(bot,update,args):
         elif q_or_a == 1:
             update.message.reply_text("现在开始编辑第{}道题的答案".format(question_num))
             return EDIT_ANSWER
-        else :
+        else : 
             update.message.reply_text("0代表问题，1代表答案！")
             return ConversationHandler.END
     except (KeyError, IndexError, ValueError):
@@ -169,7 +268,8 @@ def add(bot,update):
     if chat_id < 0:
         update.message.reply_text("就说了要在私戳的时候用 /add 啦！")
         return ConversationHandler.END
-    update.message.reply_text("不要不要不要乱玩bot!（小心被滥权哟）并且请确定你是在私聊中使用这个功能。")
+    update.message.reply_text("不要不要不要乱玩bot!（小心被滥权哟）并且注意当你使用Markdown模式时，"
+                              "bot收到的是渲染之后的文本，Markdown记号跟渲染效果都会被tg抹去再由bot接收。")
     update.message.reply_text("那我们开始吧。输入你想放入的问题，尽量短一点。如果你是不小心按到，请输入 /cancel")
     leng = str(len(questions_dict))
     if len(questions_dict[leng]) != 2:
@@ -190,7 +290,8 @@ def add_question(bot,update):
 def add_answer(bot,update):
     global questions_dict
     global text
-    username = update.message.from_user.username
+    username = update.message.from_user.first_name
+    uid = update.message.from_user.id
     shuiid = -1001108895871
     update.message.reply_text("好耶！已加入V2RayFAQ全家桶")
     leng = len(questions_dict)
@@ -199,19 +300,12 @@ def add_answer(bot,update):
     text = text + str(current) + '.'
     text = text + questions_dict[str(current)][0] + '\n'
     save_json(questions_dict)
-    if username == None :
-        try:
-            username = update.message.from_user.first_name + update.message.from_user.last_name
-        except(TypeError):
-            username = update.message.from_user.first_name
-    little_report = '''就是这个人 @{} 刚刚提交了问题
+    little_report = '''就是这个人 [{}](tg://user?id={}) 刚刚提交了问题
     {}.{}
-    答: {}'''.format(username, current, questions_dict[current][0], questions_dict[current][1])
-    bot.send_message(shuiid, text=little_report)
-
+    答: {}'''.format(username, uid, current, questions_dict[current][0], questions_dict[current][1])
+    bot.send_message(shuiid, text=little_report, parse_mode='Markdown')
 
     return ConversationHandler.END
-
 
 def search(bot,update,args):
     global questions_dict
@@ -249,14 +343,11 @@ def error(bot, update, error):
     """Log Errors caused by Updates."""
     logger.warning('Update "%s" caused error "%s"', update, error)
 
-
 def get_chatid(bot,update):
     update.message.reply_text(update.message.chat_id)
 
-
-#def get_username(bot,update):
-#    update.message.reply_text(update.message.from_user.username)
-
+def get_username(bot,update):
+    update.message.reply_text(update.message.from_user.username)
 
 def main():
     global questions_dict
@@ -264,26 +355,26 @@ def main():
     questions_dict = load_json()
     text = generate_text()
 
-    # Create the EventHandler and pass it your bot's token.
     updater = Updater("TOKEN")
 
-    # Get the dispatcher to register handlers
     dp = updater.dispatcher
 
     dp.add_handler(telegram.ext.CommandHandler("start", start))
     dp.add_handler(telegram.ext.CommandHandler("help", start))
     dp.add_handler(telegram.ext.CommandHandler("delete", delete))
     dp.add_handler(telegram.ext.CommandHandler("get_chatid", get_chatid))
-#   dp.add_handler(telegram.ext.CommandHandler("get_username", get_username))
+    dp.add_handler(telegram.ext.CommandHandler("get_username", get_username))
     dp.add_handler(telegram.ext.CommandHandler("question", question,
                                                pass_args=True))
     dp.add_handler(telegram.ext.CommandHandler("answer", answer,
                                                pass_args=True))
-    dp.add_handler(telegram.ext.CommandHandler("questions", questions,
+    dp.add_handler(telegram.ext.CommandHandler("all_questions", all_questions,
                                                 pass_chat_data=True))
+    dp.add_handler(CommandHandler('questions', questions,
+                                  pass_chat_data=True))
+    dp.add_handler(CallbackQueryHandler(button, pass_chat_data=True))
 
 
-    # Add conversation handler with the states GENDER, PHOTO, LOCATION and BIO
     conv_handler1 = ConversationHandler(
         entry_points=[CommandHandler('add', add)],
 
@@ -294,7 +385,7 @@ def main():
 
             ANSWER: [MessageHandler(Filters.text, add_answer),
             CommandHandler('cancel', cancel)]
-
+                    
         },
 
         fallbacks=[CommandHandler('cancel', cancel)]
@@ -310,7 +401,7 @@ def main():
 
             EDIT_ANSWER: [MessageHandler(Filters.text, edit_answer),
             CommandHandler('cancel', cancel)]
-
+                    
         },
 
         fallbacks=[CommandHandler('cancel', cancel)]
