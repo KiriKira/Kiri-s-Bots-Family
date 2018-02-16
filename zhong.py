@@ -172,7 +172,7 @@ def fuq(bot,update):
     if text in welcome_msg or text in reply_msg:
         update.message.reply_text(random.choice(reply_msg))
 
-    if re.match("[亲,抱]*.*[rgy,饶耕宇].*[亲,抱,啪啪啪]*", text):
+    if re.match("[亲,抱]+.*[rgy,饶耕宇].*", text) or re.match(".*[rgy,饶耕宇].*[亲,抱,啪啪啪]+.*", text):
         if random.choice(range(2)) == 1:
             re_list = ["那么喜欢的话……钟钟就把rgy给你啦~",
                   "亲亲rgy",
