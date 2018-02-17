@@ -172,9 +172,9 @@ def fuq(bot,update):
     if text in welcome_msg or text in reply_msg:
         update.message.reply_text(random.choice(reply_msg))
 
-    m = re.match(r"(.*(?P<act>(亲|抱|捏)+).*(?P<person>rgy|饶耕宇|学姐|三爷|kiri|千千|大风车|洛天依)).*", text)
+    m = re.match(r".*(?P<act>(亲|抱|捏)+).*(?P<person>rgy|饶耕宇|学姐|三爷|kiri|千千|大风车|洛天依).*", text)
     if not m:
-        m = re.match(r".*((?P<person>rgy|饶耕宇|学姐|三爷|kiri|千千|大风车|洛天依).*(?P<act>(亲|抱|啪啪啪|捏)+)).*", text)
+        m = re.match(r".*(?P<person>rgy|饶耕宇|学姐|三爷|kiri|千千|大风车|洛天依).*(?P<act>(亲|抱|啪啪啪|捏)+).*", text)
     if m:
         re_list = [m.group("act"),
                    m.group("act") + m.group("person"),
